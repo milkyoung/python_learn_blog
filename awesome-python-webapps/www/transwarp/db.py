@@ -138,18 +138,19 @@ class _Engine(object):
         return self._connect()
 
 def create_engine(user, password, database, host='127.0.0.1', port=3306, **kw):#关键字参数
-    import mysql.connector
+    # import mysql.connector
+    import MySQLdb
     global engine
     if engine is not None:
         raise DBError('Engine is already initialized.')
-    params = dict(user=user, password=password, database=database, host=host, port=port)
-    defaults = dict(use_unicode=True, charset='utf8', collation='utf8_general_ci', autocommit=False)
+    params = dict(user=user, passwd=password, db=database, host=host, port=port)
+    defaults = dict(use_unicode=True, charset='utf8', autocommit=False)
     for k, v in defaults.iteritems():#iteritems()和items()一样，只不过前者是个迭代器
         params[k] = kw.pop(k, v)#pop返回value值，若key值k不存在则返回，v
     #到此为止kw还剩下一些除了defaults里的元素
     params.update(kw)
-    params['buffered'] = True
-    engine = _Engine(lambda: mysql.connector.connect(**params)) #engine是个对象
+    # params['buffered'] = True
+    engine = _Engine(lambda: MySQLdb.connect(**params)) #engine是个对象
     # test connection...
     logging.info('Init mysql engine <%s> ok.' % hex(id(engine))) #id(engine)返回对象的内存地址 hex()将十进制转化为16进制
 
@@ -192,7 +193,7 @@ def with_connection(func):
         f2()
         f3()
     '''
-    @functools.wraps(func)
+    @functools.wraps(func) #functools.wraps 的作用是将原函数对象的指定属性复制给包装函数对象, 默认有 module、name、doc
     def _wrapper(*args, **kw):
         with _ConnectionCtx():
             return func(*args, **kw)
@@ -370,7 +371,7 @@ def select_int(sql, *args):
     d = _select(sql, True, *args)
     if len(d)!=1:
         raise MultiColumnsError('Expect only one column.')
-    return d.values()[0]
+    return int(d.values()[0])
 
 @with_connection
 def select(sql, *args):
@@ -410,7 +411,7 @@ def _update(sql, *args):
             # no transaction enviroment:
             logging.info('auto commit')
             _db_ctx.connection.commit()
-        return r
+        return int(r)
     finally:
         if cursor:
             cursor.close()
